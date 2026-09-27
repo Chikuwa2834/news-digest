@@ -1,0 +1,24 @@
+# newsbot の全体設定
+
+mail:
+  to: ""        # 空なら環境変数 MAIL_TO、それも無ければ送信元と同じアドレスに送る
+  digest_prefix: "[ニュース]"
+  alert_prefix: "[速報]"
+
+# 収集の間隔（schedule install で登録するタスクの周期）
+poll_interval_minutes: 10
+
+digest:
+  times: ["07:00", "19:00"]   # ダイジェストを送る時刻（ローカル時刻、いくつでも）
+  max_items_per_feed: 15      # 1 回のダイジェストで 1 ソースから載せる最大件数
+  lookback_hours: 36          # これより古い記事はダイジェストに載せない
+
+alert:
+  enabled: true
+  max_age_hours: 6            # 公開からこれ以上経った記事は速報しない
+
+llm:
+  provider: github            # github（無料・GitHub Models） / claude（有料・Claude API） / none（翻訳しない）
+  github_model: openai/gpt-4.1-mini
+  model: claude-opus-5        # provider: claude のときのモデル
+  effort: low                 # provider: claude のときの思考量（low / medium / high）

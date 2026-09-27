@@ -1,0 +1,72 @@
+name: newsbot
+
+on:
+  schedule:
+    - cron: "*/10 * * * *"   # 10 分ごと（GitHub の混雑で数分〜十数分遅れることがある）
+  workflow_dispatch:
+    inputs:
+      command:
+        description: 実行するコマンド
+        type: choice
+        options: [run, preview, digest, test-mail]   # preview: 送信せずにダイジェストを作って成果物に保存
+        default: run
+
+permissions:
+  contents: write            # 既読管理の state ブランチを書き込むため
+  models: read               # GitHub Models（無料の翻訳・要約）を使うため
+
+concurrency:
+  group: newsbot             # 前回の実行が終わるまで次を待たせる
+  cancel-in-progress: false
+
+jobs:
+  newsbot:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      TZ: Asia/Tokyo         # ダイジェストの配信時刻を日本時間で解釈する
+      GMAIL_ADDRESS: ${{ secrets.GMAIL_ADDRESS }}
+      GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
+      MAIL_TO: ${{ secrets.MAIL_TO }}
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}   # provider: claude のときだけ
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+
+      # 既読管理 DB は state ブランチに 1 コミットだけ置いておく
+      - name: Restore state
+        run: |
+          mkdir -p data
+          if git fetch --depth=1 origin state; then
+            git show FETCH_HEAD:state.db > data/state.db
+          else
+            echo "state ブランチなし（初回）"
+          fi
+
+      - name: Run newsbot
+        if: inputs.command != 'preview'
+        run: uv run newsbot -v ${{ inputs.command || 'run' }}
+
+      - name: Preview digest
+        if: inputs.command == 'preview'
+        run: uv run newsbot -v poll && uv run newsbot -v digest --dry-run
+
+      - uses: actions/upload-artifact@v4
+        if: inputs.command == 'preview'
+        with:
+          name: digest-preview
+          path: data/preview.html
+
+      - name: Save state
+        if: always()
+        run: |
+          [ -f data/state.db ] || exit 0
+          blob=$(git hash-object -w data/state.db)
+          tree=$(printf '100644 blob %s\tstate.db\n' "$blob" | git mktree)
+          commit=$(git -c user.name=newsbot -c user.email=newsbot@users.noreply.github.com \
+                   commit-tree "$tree" -m "state $(date -Iseconds)")
+          git push -f origin "$commit:refs/heads/state"

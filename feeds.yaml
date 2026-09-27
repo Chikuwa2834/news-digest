@@ -1,0 +1,31 @@
+# 収集対象のニュースサイト（RSS/Atom フィード）
+# 直接編集しても、`newsbot feed add <サイトURL>` で追加してもよい。
+#   name:     メールに表示するソース名
+#   url:      フィードの URL
+#   category: 任意。ダイジェストの見出しに使う
+#   enabled:  false にすると収集を止める（削除せずに休止できる）
+feeds:
+- name: NHK 主要ニュース
+  url: https://news.web.nhk/n-data/conf/na/rss/cat0.xml
+  category: 国内
+  enabled: true
+- name: ITmedia NEWS
+  url: https://rss.itmedia.co.jp/rss/2.0/news_bursts.xml
+  category: テクノロジー
+  enabled: true
+- name: BBC World
+  url: https://feeds.bbci.co.uk/news/world/rss.xml
+  category: 海外
+  enabled: true
+- name: Nature
+  url: https://www.nature.com/nature.rss
+  category: 科学
+  enabled: true
+- name: Phys.org
+  url: https://phys.org/rss-feed/
+  category: 科学
+  enabled: true
+- name: GIGAZINE RSS Feed
+  url: https://gigazine.net/news/rss_2.0/
+  category: テクノロジー
+  enabled: true

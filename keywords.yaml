@@ -1,0 +1,18 @@
+# リアルタイム通知のキーワード
+# 新着記事のタイトルか概要に words のどれかが含まれると、すぐにメールが届く。
+# 英語記事も拾いたいときは英語の表記も words に並べる。
+#   name:    通知メールに表示する名前
+#   words:   一致させる語（大文字小文字は区別しない、部分一致）
+#   exclude: これを含む記事は通知しない（任意）
+#   enabled: false で一時停止
+keywords:
+- name: 着霜・結露
+  words: [着霜, 結露, frost formation, frosting, condensation, anti-icing, icephobic]
+  enabled: true
+- name: 生成AI
+  words: [生成AI, Claude, Anthropic, ChatGPT, OpenAI, Gemini]
+  enabled: false
+- name: 半導体
+  words: [半導体, semiconductor, TSMC]
+  exclude: [求人]
+  enabled: true
