@@ -18,7 +18,7 @@ alert:
   max_age_hours: 6            # 公開からこれ以上経った記事は速報しない
 
 llm:
-  provider: github            # github（無料・GitHub Models） / claude（有料・Claude API） / none（翻訳しない）
-  github_model: openai/gpt-4.1-mini
+  provider: gemini            # gemini（無料枠・Gemini API） / claude（有料・Claude API） / none（翻訳しない）
+  gemini_model: gemini-3.1-flash-lite
   model: claude-opus-5        # provider: claude のときのモデル
   effort: low                 # provider: claude のときの思考量（low / medium / high）

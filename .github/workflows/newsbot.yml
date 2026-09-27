@@ -13,7 +13,6 @@ on:
 
 permissions:
   contents: write            # 既読管理の state ブランチを書き込むため
-  models: read               # GitHub Models（無料の翻訳・要約）を使うため
 
 concurrency:
   group: newsbot             # 前回の実行が終わるまで次を待たせる
@@ -29,7 +28,7 @@ jobs:
       GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
       MAIL_TO: ${{ secrets.MAIL_TO }}
       ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}   # provider: claude のときだけ
-      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
     steps:
       - uses: actions/checkout@v5
 

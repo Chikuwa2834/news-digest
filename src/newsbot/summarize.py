@@ -1,7 +1,7 @@
 """記事に日本語のタイトル・要約を付ける。
 
 llm.provider で使う AI を選ぶ。
-  github: GitHub Models（無料。Actions では GITHUB_TOKEN、手元では `gh auth token` を使う）
+  gemini: Gemini API（無料枠あり。GEMINI_API_KEY が必要）
   claude: Claude API（有料。ANTHROPIC_API_KEY が必要）
   none:   翻訳しない（原文のまま）
 どれも失敗したときは原文のまま返し、メールは必ず送れるようにする。
@@ -12,8 +12,6 @@ from __future__ import annotations
 import json
 import logging
 import os
-import shutil
-import subprocess
 
 import requests
 
@@ -58,45 +56,31 @@ SCHEMA = {
 }
 
 
-# ---------------------------------------------------------------- GitHub Models
+# ---------------------------------------------------------------- Gemini
 
-GITHUB_URL = "https://models.github.ai/inference/chat/completions"
-
-
-def _github_token() -> str | None:
-    token = os.environ.get("GITHUB_TOKEN") or os.environ.get("GH_TOKEN")
-    if token:
-        return token
-    gh = shutil.which("gh") or r"C:\Program Files\GitHub CLI\gh.exe"
-    try:
-        out = subprocess.run([gh, "auth", "token"], capture_output=True, text=True, timeout=10)
-        return out.stdout.strip() or None
-    except OSError:
-        return None
+GEMINI_URL = "https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent"
 
 
-def _call_github(payload: list[dict], cfg: dict) -> dict:
-    token = _github_token()
-    if not token:
-        raise RuntimeError("GitHub のトークンがありません（手元なら gh auth login）")
+def _call_gemini(payload: list[dict], cfg: dict) -> dict:
+    key = os.environ.get("GEMINI_API_KEY")
+    if not key:
+        raise RuntimeError("GEMINI_API_KEY がありません")
     resp = requests.post(
-        GITHUB_URL,
-        headers={"Authorization": f"Bearer {token}", "Content-Type": "application/json"},
+        GEMINI_URL.format(model=cfg.get("gemini_model", "gemini-3.1-flash-lite")),
+        headers={"x-goog-api-key": key, "Content-Type": "application/json"},
         json={
-            "model": cfg.get("github_model", "openai/gpt-4.1-mini"),
-            "messages": [
-                {"role": "system", "content": SYSTEM + FORMAT_HINT},
-                {"role": "user", "content": json.dumps(payload, ensure_ascii=False)},
-            ],
-            "response_format": {"type": "json_object"},
-            "temperature": 0.2,
+            "systemInstruction": {"parts": [{"text": SYSTEM + FORMAT_HINT}]},
+            "contents": [{"role": "user", "parts": [{"text": json.dumps(payload, ensure_ascii=False)}]}],
+            "generationConfig": {"responseMimeType": "application/json", "temperature": 0.2},
         },
         timeout=120,
     )
     if resp.status_code == 429:
-        raise RuntimeError("GitHub Models の無料枠の上限に達しました")
-    resp.raise_for_status()
-    return json.loads(resp.json()["choices"][0]["message"]["content"])
+        raise RuntimeError("Gemini の無料枠の上限に達しました")
+    if not resp.ok:
+        raise RuntimeError(f"Gemini API {resp.status_code}: {resp.text[:300]}")
+    parts = resp.json()["candidates"][0]["content"]["parts"]
+    return json.loads("".join(p.get("text", "") for p in parts))
 
 
 # ---------------------------------------------------------------- Claude
@@ -124,8 +108,8 @@ def _call_claude(payload: list[dict], cfg: dict) -> dict:
     return json.loads(next(b.text for b in resp.content if b.type == "text"))
 
 
-PROVIDERS = {"github": (_call_github, 15, 300), "claude": (_call_claude, 40, 600)}
-#                        関数, 1 回に送る記事数, 概要の最大文字数（GitHub Models は入力 8000 トークンまで）
+PROVIDERS = {"gemini": (_call_gemini, 40, 600), "claude": (_call_claude, 40, 600)}
+#             プロバイダ: (関数, 1 回に送る記事数, 概要の最大文字数)
 
 
 # ---------------------------------------------------------------- 入口
@@ -134,7 +118,7 @@ def translate(items: list[dict], llm_cfg: dict) -> tuple[list[dict], list[str]]:
     """items に title_ja / summary_ja を付けて返す。第 2 要素はハイライト。"""
     if not items:
         return [], []
-    provider = llm_cfg.get("provider", "github") if llm_cfg.get("enabled", True) else "none"
+    provider = llm_cfg.get("provider", "gemini") if llm_cfg.get("enabled", True) else "none"
     if provider not in PROVIDERS:
         return [{**it, "title_ja": it["title"], "summary_ja": it["summary"][:200]} for it in items], []
     call, chunk_size, max_chars = PROVIDERS[provider]
